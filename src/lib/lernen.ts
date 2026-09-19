@@ -9,6 +9,7 @@ export function normalisiere(t: string): string {
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
+    .replace(/[.!?¿¡…"„“”]/g, "")
     .replace(/\s+/g, " ")
     .trim();
 }

@@ -48,6 +48,7 @@ export default async function Home() {
         <Link href="/verknuepfen" className="text-sm underline">Mit einem Elternteil verknüpfen</Link>
       )}
       {status?.ziel != null && <Link href="/verknuepfen" className="text-sm underline">Eltern verwalten</Link>}
+      <Link href="/einstellungen" className="text-sm underline">Wiederholungs-Abstände einstellen</Link>
     </main>
   );
 }

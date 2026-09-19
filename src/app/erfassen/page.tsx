@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { AufsagenKnopf, VorlesenKnopf } from "@/components/Sprachknoepfe";
 import { eingabe, knopf } from "@/components/AuthLayout";
 
 type Sprache = "en" | "la";
@@ -113,6 +114,7 @@ export default function Erfassen() {
         <input ref={wortRef} className={eingabe} placeholder={sprache === "en" ? "Englisches Wort" : "Lateinisches Wort"}
           autoCapitalize="off" autoCorrect="off" spellCheck={false} required
           value={wort} onChange={(e) => setWort(e.target.value)} />
+        <AufsagenKnopf sprache={sprache} onText={setWort} />
 
         {passendeVorschlaege.length > 0 && (
           <div className="rounded-lg bg-amber-50 p-3 text-sm">
@@ -156,6 +158,7 @@ export default function Erfassen() {
                   <p className="text-sm text-neutral-600">{v.deutsch}</p>
                 </div>
                 <div className="flex items-center gap-3">
+                  <VorlesenKnopf text={v.wort} sprache={sprache} />
                   <span className="text-xs text-neutral-500">{v.fach === 6 ? "gelernt" : `Fach ${v.fach}`}</span>
                   <button className="text-sm text-red-600 underline" onClick={() => loeschen(v.id)}
                     aria-label={`${v.wort} löschen`}>

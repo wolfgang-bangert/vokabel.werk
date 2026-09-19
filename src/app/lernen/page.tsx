@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { eingabe, knopf } from "@/components/AuthLayout";
+import { AufsagenKnopf, VorlesenKnopf } from "@/components/Sprachknoepfe";
 import { STANDARD_STUNDEN, faelligAm, naechstesFach, pruefe, type Ergebnis } from "@/lib/lernen";
 
 type Karte = { id: string; sprache: "en" | "la"; wort: string; deutsch: string; fach: number; zentral_id: string | null };
@@ -128,6 +129,7 @@ export default function Lernen() {
         <input ref={feldRef} className={eingabe} value={antwort} onChange={(e) => setAntwort(e.target.value)}
           autoCapitalize="off" autoCorrect="off" autoComplete="off" spellCheck={false} disabled={!!ergebnis}
           placeholder="Deine Antwort" />
+        {!ergebnis && <AufsagenKnopf sprache={karte.sprache} onText={setAntwort} />}
         {!ergebnis && <button className={knopf} type="submit" disabled={!antwort.trim()}>Prüfen</button>}
       </form>
 
@@ -138,6 +140,7 @@ export default function Lernen() {
             {ergebnis === "tippfehler" && <p className="font-semibold">Richtig, achte auf die Schreibweise: {karte.wort}</p>}
             {ergebnis === "falsch" && <p className="font-semibold">Nicht ganz. Es heißt: {karte.wort}</p>}
             {ergebnis === "falsch" && <p className="text-sm">Die Vokabel kommt wieder in Fach 1.</p>}
+            <div className="mt-3"><VorlesenKnopf text={karte.wort} sprache={karte.sprache} /></div>
           </div>
           {tipps.length > 0 && (
             <div className="rounded-lg bg-amber-50 p-4 text-sm">
