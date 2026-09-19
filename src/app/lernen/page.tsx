@@ -20,6 +20,7 @@ export default function Lernen() {
   const [ergebnis, setErgebnis] = useState<Ergebnis | null>(null);
   const [tipps, setTipps] = useState<string[]>([]);
   const [richtige, setRichtige] = useState(0);
+  const [tagesziel, setTagesziel] = useState<{ heute: number; ziel: number; neu: number } | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
   const feldRef = useRef<HTMLInputElement>(null);
 
@@ -63,6 +64,10 @@ export default function Lernen() {
       .update({ fach, faellig_am: faelligAm(fach, stunden) })
       .eq("id", karte.id);
     if (error) setFehler("Das Ergebnis konnte nicht gespeichert werden.");
+
+    await supabase.from("lernversuch").insert({ vokabel_id: karte.id, richtig: gewusst });
+    const { data: st } = await supabase.rpc("tagesziel_status");
+    if (st?.ziel != null) setTagesziel({ heute: st.heute, ziel: st.ziel, neu: st.neu_gutgeschrieben });
 
     // Eselsbrücke und Sprachbrücke erst nach der Antwort zeigen
     const gefunden: string[] = [];
@@ -139,6 +144,13 @@ export default function Lernen() {
               <p className="mb-1 font-medium">Eselsbrücke</p>
               {tipps.map((t) => <p key={t}>{t}</p>)}
             </div>
+          )}
+          {tagesziel && (
+            <p className="text-sm text-neutral-600">
+              {tagesziel.neu > 0
+                ? `Tagesziel geschafft! ${tagesziel.neu} Minuten wurden deinem Zeitkonto gutgeschrieben.`
+                : `Heute: ${tagesziel.heute} / ${tagesziel.ziel} richtig`}
+            </p>
           )}
           {fehler && <p className="text-sm text-red-600">{fehler}</p>}
           <button className={knopf} onClick={weiter} autoFocus>Weiter</button>

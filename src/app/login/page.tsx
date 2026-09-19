@@ -21,6 +21,8 @@ function LoginForm() {
   const [email, setEmail] = useState("");
   const [passwort, setPasswort] = useState("");
   const [registrieren, setRegistrieren] = useState(false);
+  const [rolle, setRolle] = useState<"kind" | "elternteil">("kind");
+  const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [meldung, setMeldung] = useState<{ text: string; fehler: boolean } | null>(
     params.get("fehler") === "link"
@@ -37,7 +39,7 @@ function LoginForm() {
       const { data, error } = await supabase.auth.signUp({
         email,
         password: passwort,
-        options: { emailRedirectTo: `${location.origin}/auth/callback` },
+        options: { emailRedirectTo: `${location.origin}/auth/callback`, data: { rolle, name: name.trim() } },
       });
       setBusy(false);
       if (error) return setMeldung({ text: deutsch(error.message), fehler: true });
@@ -54,6 +56,20 @@ function LoginForm() {
   return (
     <AuthLayout titel={registrieren ? "Konto erstellen" : "Anmelden"}>
       <form onSubmit={absenden} className="flex flex-col gap-3">
+        {registrieren && (
+          <>
+            <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label="Ich bin">
+              {(["kind", "elternteil"] as const).map((r) => (
+                <button key={r} type="button" role="radio" aria-checked={rolle === r} onClick={() => setRolle(r)}
+                  className={`rounded-lg border p-3 font-medium ${rolle === r ? "border-black bg-black text-white" : "border-neutral-300"}`}>
+                  {r === "kind" ? "Ich bin ein Kind" : "Ich bin Elternteil"}
+                </button>
+              ))}
+            </div>
+            <input className={eingabe} placeholder="Dein Vorname" autoComplete="given-name" required
+              value={name} onChange={(e) => setName(e.target.value)} />
+          </>
+        )}
         <input className={eingabe} type="email" placeholder="E-Mail" autoComplete="email" required
           value={email} onChange={(e) => setEmail(e.target.value)} />
         <input className={eingabe} type="password" placeholder="Passwort (mind. 8 Zeichen)" required minLength={8}
