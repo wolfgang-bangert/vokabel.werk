@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { eingabe, knopf } from "@/components/AuthLayout";
-import { AufsagenKnopf, VorlesenKnopf } from "@/components/Sprachknoepfe";
+import { AufsagenKnopf } from "@/components/Sprachknoepfe";
 import { STANDARD_STUNDEN, faelligAm, naechstesFach, pruefe, type Ergebnis } from "@/lib/lernen";
 
 type Karte = { id: string; sprache: "en" | "la"; wort: string; deutsch: string; fach: number; zentral_id: string | null };
@@ -140,12 +140,11 @@ export default function Lernen() {
             {ergebnis === "tippfehler" && <p className="font-semibold">Richtig, achte auf die Schreibweise: {karte.wort}</p>}
             {ergebnis === "falsch" && <p className="font-semibold">Nicht ganz. Es heißt: {karte.wort}</p>}
             {ergebnis === "falsch" && <p className="text-sm">Die Vokabel kommt wieder in Schacht 1.</p>}
-            <div className="mt-3"><VorlesenKnopf text={karte.wort} sprache={karte.sprache} /></div>
           </div>
           {tipps.length > 0 && (
-            <div className="rounded-lg bg-amber-50 p-4 text-sm">
-              <p className="mb-1 font-medium">Eselsbrücke</p>
-              {tipps.map((t) => <p key={t}>{t}</p>)}
+            <div className="rounded-lg bg-amber-50 p-5">
+              <p className="mb-2 text-lg font-semibold">💡 Eselsbrücke</p>
+              {tipps.map((t) => <p key={t} className="text-lg leading-snug">{t}</p>)}
             </div>
           )}
           {tagesziel && (
