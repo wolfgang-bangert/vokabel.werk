@@ -159,7 +159,7 @@ export default function Erfassen() {
                 </div>
                 <div className="flex items-center gap-3">
                   <VorlesenKnopf text={v.wort} sprache={sprache} />
-                  <span className="text-xs text-neutral-500">{v.fach === 6 ? "gelernt" : `Fach ${v.fach}`}</span>
+                  <span className="text-xs text-neutral-500">{v.fach === 6 ? "gelernt" : `Schacht ${v.fach}`}</span>
                   <button className="text-sm text-red-600 underline" onClick={() => loeschen(v.id)}
                     aria-label={`${v.wort} löschen`}>
                     Löschen

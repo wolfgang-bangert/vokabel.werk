@@ -1,6 +1,6 @@
 export type Ergebnis = "richtig" | "tippfehler" | "falsch";
 
-/** Standard-Wiederholungsabstände in Stunden für Fach 1-5 (Kind kann sie ändern). */
+/** Standard-Wiederholungsabstände in Stunden für Schacht 1-5 (Kind kann sie ändern). */
 export const STANDARD_STUNDEN = [24, 72, 168, 336, 720] as const;
 
 /** Klein, ohne Akzente/Längenzeichen (ā -> a), einfache Leerzeichen. */
@@ -41,7 +41,7 @@ export function pruefe(eingabe: string, loesung: string): Ergebnis {
   return kandidaten.some((k) => abstand(e, k) <= toleranz(k.length)) ? "tippfehler" : "falsch";
 }
 
-/** Gewusst: ein Fach weiter (6 = gelernt). Nicht gewusst: zurück in Fach 1. */
+/** Gewusst: einen Schacht weiter (6 = gelernt). Nicht gewusst: zurück in Schacht 1. */
 export function naechstesFach(fach: number, gewusst: boolean): number {
   return gewusst ? Math.min(fach + 1, 6) : 1;
 }

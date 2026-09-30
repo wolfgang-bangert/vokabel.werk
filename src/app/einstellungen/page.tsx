@@ -67,8 +67,8 @@ export default function Einstellungen() {
       <Link href="/" className="text-sm underline">← Zurück</Link>
       <h1 className="text-2xl font-bold">Wiederholungs-Abstände</h1>
       <p className="text-neutral-600">
-        Wenn du eine Vokabel weißt, rückt sie ein Fach weiter und kommt erst nach dieser Zeit wieder.
-        Weißt du sie nicht, geht sie zurück in Fach 1. Fach 6 heißt: gelernt.
+        Wenn du eine Vokabel weißt, rückt sie einen Schacht weiter und kommt erst nach dieser Zeit wieder.
+        Weißt du sie nicht, geht sie zurück in Schacht 1. Schacht 6 heißt: gelernt.
       </p>
 
       {zeilen === null ? (
@@ -77,10 +77,10 @@ export default function Einstellungen() {
         <form onSubmit={speichern} className="flex flex-col gap-3">
           {zeilen.map((z, i) => (
             <div key={i} className="grid grid-cols-[5rem_1fr_7rem] items-center gap-2">
-              <span className="font-medium">Fach {i + 1}</span>
+              <span className="font-medium">Schacht {i + 1}</span>
               <input className={eingabe} type="number" min={1} inputMode="numeric" value={z.wert}
-                aria-label={`Fach ${i + 1} Abstand`} onChange={(e) => aendern(i, { wert: e.target.value })} />
-              <select className={eingabe} value={z.einheit} aria-label={`Fach ${i + 1} Einheit`}
+                aria-label={`Schacht ${i + 1} Abstand`} onChange={(e) => aendern(i, { wert: e.target.value })} />
+              <select className={eingabe} value={z.einheit} aria-label={`Schacht ${i + 1} Einheit`}
                 onChange={(e) => aendern(i, { einheit: e.target.value as Einheit })}>
                 <option value="stunden">Stunden</option>
                 <option value="tage">Tage</option>

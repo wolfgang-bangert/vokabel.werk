@@ -64,12 +64,12 @@ function KindKarte({ kind, neuLaden }: { kind: Kind; neuLaden: () => void }) {
       </div>
 
       <div>
-        <p className="mb-1 text-sm font-medium">Vokabeln je Fach</p>
+        <p className="mb-1 text-sm font-medium">Vokabeln je Schacht</p>
         <div className="grid grid-cols-6 gap-1 text-center text-sm">
           {[1, 2, 3, 4, 5, 6].map((f) => (
             <div key={f} className="rounded bg-neutral-100 p-2">
               <p className="font-semibold">{u.faecher[f] ?? 0}</p>
-              <p className="text-xs text-neutral-500">{f === 6 ? "fertig" : `F${f}`}</p>
+              <p className="text-xs text-neutral-500">{f === 6 ? "fertig" : `S${f}`}</p>
             </div>
           ))}
         </div>

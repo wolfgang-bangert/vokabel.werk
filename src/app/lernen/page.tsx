@@ -118,7 +118,7 @@ export default function Lernen() {
     <main className="mx-auto flex min-h-screen max-w-xl flex-col gap-5 p-6">
       {kopf}
       <p className="text-sm text-neutral-500">
-        {pos + 1} / {karten.length} · {SPRACHE[karte.sprache]} · Fach {karte.fach}
+        {pos + 1} / {karten.length} · {SPRACHE[karte.sprache]} · Schacht {karte.fach}
       </p>
       <div>
         <p className="text-sm text-neutral-600">Schreibe auf {SPRACHE[karte.sprache]}:</p>
@@ -139,7 +139,7 @@ export default function Lernen() {
             {ergebnis === "richtig" && <p className="font-semibold">Richtig!</p>}
             {ergebnis === "tippfehler" && <p className="font-semibold">Richtig, achte auf die Schreibweise: {karte.wort}</p>}
             {ergebnis === "falsch" && <p className="font-semibold">Nicht ganz. Es heißt: {karte.wort}</p>}
-            {ergebnis === "falsch" && <p className="text-sm">Die Vokabel kommt wieder in Fach 1.</p>}
+            {ergebnis === "falsch" && <p className="text-sm">Die Vokabel kommt wieder in Schacht 1.</p>}
             <div className="mt-3"><VorlesenKnopf text={karte.wort} sprache={karte.sprache} /></div>
           </div>
           {tipps.length > 0 && (
