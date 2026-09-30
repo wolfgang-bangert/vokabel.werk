@@ -5,14 +5,30 @@ import { createClient } from "@/lib/supabase/client";
 import { eingabe, knopf } from "@/components/AuthLayout";
 
 type Tag = { datum: string; richtig: number; falsch: number };
+type Versuch = { zeit: string; wort: string | null; deutsch: string | null; ergebnis: "richtig" | "tippfehler" | "falsch" };
 type Uebersicht = {
   name: string;
   faecher: Record<string, number>;
   heute: number;
   ziel: number | null;
   minuten: number | null;
+  vorlesen: boolean;
   saldo: number;
+  tippfehler_7t: number;
+  versuche_7t: number;
   tage: Tag[];
+  verlauf: Versuch[];
+};
+
+const ERGEBNIS_STIL: Record<Versuch["ergebnis"], string> = {
+  richtig: "text-green-700",
+  tippfehler: "text-amber-700",
+  falsch: "text-red-700",
+};
+const ERGEBNIS_TEXT: Record<Versuch["ergebnis"], string> = {
+  richtig: "richtig",
+  tippfehler: "Tippfehler",
+  falsch: "falsch",
 };
 type Kind = { id: string; u: Uebersicht };
 
@@ -21,13 +37,14 @@ function KindKarte({ kind, neuLaden }: { kind: Kind; neuLaden: () => void }) {
   const u = kind.u;
   const [ziel, setZiel] = useState(String(u.ziel ?? 15));
   const [minuten, setMinuten] = useState(String(u.minuten ?? 30));
+  const [vorlesen, setVorlesen] = useState(u.vorlesen);
   const [einloesen, setEinloesen] = useState("");
   const [meldung, setMeldung] = useState<string | null>(null);
 
   async function regelSpeichern() {
     const { error } = await supabase
       .from("zeitregel")
-      .update({ tagesziel: Number(ziel), minuten: Number(minuten) })
+      .update({ tagesziel: Number(ziel), minuten: Number(minuten), vorlesen_erlaubt: vorlesen })
       .eq("kind_id", kind.id);
     setMeldung(error ? "Bitte Werte zwischen 1 und 500 (Ziel) und 0 bis 600 (Minuten) eingeben." : "Gespeichert.");
     if (!error) neuLaden();
@@ -61,6 +78,10 @@ function KindKarte({ kind, neuLaden }: { kind: Kind; neuLaden: () => void }) {
           <p className="text-2xl font-bold">{u.saldo} Min.</p>
           <p className="text-xs text-neutral-600">Zeitkonto</p>
         </div>
+        <div className={`col-span-2 rounded-lg p-3 ${u.tippfehler_7t > 0 ? "bg-amber-50" : "bg-neutral-100"}`}>
+          <p className="text-2xl font-bold">{u.tippfehler_7t} / {u.versuche_7t}</p>
+          <p className="text-xs text-neutral-600">Tippfehler in den letzten 7 Tagen</p>
+        </div>
       </div>
 
       <div>
@@ -91,6 +112,26 @@ function KindKarte({ kind, neuLaden }: { kind: Kind; neuLaden: () => void }) {
         )}
       </div>
 
+      <div>
+        <p className="mb-1 text-sm font-medium">Verlauf</p>
+        {u.verlauf.length === 0 ? (
+          <p className="text-sm text-neutral-600">Noch nicht gelernt.</p>
+        ) : (
+          <ul className="max-h-64 overflow-y-auto text-sm">
+            {u.verlauf.map((v, i) => (
+              <li key={i} className="flex items-center justify-between gap-2 border-b border-neutral-100 py-1">
+                <span>
+                  {v.wort ?? "?"} {v.deutsch && <span className="text-neutral-500">– {v.deutsch}</span>}
+                </span>
+                <span className={`shrink-0 font-medium ${ERGEBNIS_STIL[v.ergebnis]}`}>
+                  {ERGEBNIS_TEXT[v.ergebnis]} · {new Date(v.zeit).toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
       <div className="flex flex-col gap-2">
         <p className="text-sm font-medium">Zeit einlösen</p>
         <div className="flex gap-2">
@@ -111,6 +152,10 @@ function KindKarte({ kind, neuLaden }: { kind: Kind; neuLaden: () => void }) {
             <input className={eingabe} type="number" min={0} max={600} value={minuten} onChange={(e) => setMinuten(e.target.value)} />
           </label>
         </div>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={vorlesen} onChange={(e) => setVorlesen(e.target.checked)} />
+          Anhören-Knopf erlauben (Vokabeln vorlesen lassen)
+        </label>
         <button className="rounded-lg border border-neutral-300 p-2 text-sm" onClick={regelSpeichern}>Regel speichern</button>
       </div>
 

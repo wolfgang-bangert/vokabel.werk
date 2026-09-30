@@ -7,7 +7,7 @@ import { AufsagenKnopf, VorlesenKnopf } from "@/components/Sprachknoepfe";
 import { eingabe, knopf } from "@/components/AuthLayout";
 
 type Sprache = "en" | "la";
-type Vokabel = { id: string; wort: string; deutsch: string; fach: number };
+type Vokabel = { id: string; wort: string; deutsch: string; fach: number; kapitel: string | null };
 type Vorschlag = { wort: string; deutsch: string };
 
 const SPRACHEN: { id: Sprache; name: string }[] = [
@@ -20,21 +20,37 @@ export default function Erfassen() {
   const [sprache, setSprache] = useState<Sprache>("en");
   const [wort, setWort] = useState("");
   const [deutsch, setDeutsch] = useState("");
+  const [kapitel, setKapitel] = useState("");
+  const [kapitelVorschlaege, setKapitelVorschlaege] = useState<string[]>([]);
   const [vorschlaege, setVorschlaege] = useState<Vorschlag[]>([]);
   const [liste, setListe] = useState<Vokabel[]>([]);
   const [busy, setBusy] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
   const [bruecken, setBruecken] = useState<string[]>([]);
+  const [vorlesenErlaubt, setVorlesenErlaubt] = useState(false);
   const wortRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from("zeitregel").select("vorlesen_erlaubt").eq("kind_id", user.id).maybeSingle();
+      setVorlesenErlaubt(data?.vorlesen_erlaubt ?? false);
+    })();
+  }, [supabase]);
+
   const laden = useCallback(async () => {
-    const { data } = await supabase
-      .from("vokabel")
-      .select("id, wort, deutsch, fach")
-      .eq("sprache", sprache)
-      .order("created_at", { ascending: false })
-      .limit(50);
+    const [{ data }, { data: alle }] = await Promise.all([
+      supabase
+        .from("vokabel")
+        .select("id, wort, deutsch, fach, kapitel")
+        .eq("sprache", sprache)
+        .order("created_at", { ascending: false })
+        .limit(50),
+      supabase.from("vokabel").select("kapitel").not("kapitel", "is", null),
+    ]);
     setListe(data ?? []);
+    setKapitelVorschlaege([...new Set((alle ?? []).map((r) => r.kapitel as string))].sort());
   }, [supabase, sprache]);
 
   useEffect(() => {
@@ -61,7 +77,7 @@ export default function Erfassen() {
     setBruecken([]);
     const { data, error } = await supabase
       .from("vokabel")
-      .insert({ sprache, wort: wort.trim(), deutsch: deutsch.trim() })
+      .insert({ sprache, wort: wort.trim(), deutsch: deutsch.trim(), kapitel: kapitel.trim() || null })
       .select("zentral_id")
       .single();
     setBusy(false);
@@ -77,6 +93,7 @@ export default function Erfassen() {
     setWort("");
     setDeutsch("");
     setVorschlaege([]);
+    // Kapitel bleibt stehen, damit man mehrere Vokabeln zum gleichen Kapitel eintragen kann
     wortRef.current?.focus();
     laden();
   }
@@ -111,6 +128,14 @@ export default function Erfassen() {
       </div>
 
       <form onSubmit={speichern} className="flex flex-col gap-3">
+        <div>
+          <input className={eingabe} placeholder="Kapitel (z. B. Unit 3) – optional" list="kapitel-liste"
+            value={kapitel} onChange={(e) => setKapitel(e.target.value)} />
+          <datalist id="kapitel-liste">
+            {kapitelVorschlaege.map((k) => <option key={k} value={k} />)}
+          </datalist>
+        </div>
+
         <input ref={wortRef} className={eingabe} placeholder={sprache === "en" ? "Englisches Wort" : "Lateinisches Wort"}
           autoCapitalize="off" autoCorrect="off" spellCheck={false} required
           value={wort} onChange={(e) => setWort(e.target.value)} />
@@ -156,9 +181,10 @@ export default function Erfassen() {
                 <div>
                   <p className="font-medium">{v.wort}</p>
                   <p className="text-sm text-neutral-600">{v.deutsch}</p>
+                  {v.kapitel && <p className="text-xs text-neutral-400">{v.kapitel}</p>}
                 </div>
                 <div className="flex items-center gap-3">
-                  <VorlesenKnopf text={v.wort} sprache={sprache} />
+                  {vorlesenErlaubt && <VorlesenKnopf text={v.wort} sprache={sprache} />}
                   <span className="text-xs text-neutral-500">{v.fach === 6 ? "gelernt" : `Schacht ${v.fach}`}</span>
                   <button className="text-sm text-red-600 underline" onClick={() => loeschen(v.id)}
                     aria-label={`${v.wort} löschen`}>
