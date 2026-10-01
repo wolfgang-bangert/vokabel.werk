@@ -1,13 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { AufsagenKnopf, VorlesenKnopf } from "@/components/Sprachknoepfe";
 import { eingabe, knopf } from "@/components/AuthLayout";
 
 type Sprache = "en" | "la";
-type Vokabel = { id: string; wort: string; deutsch: string; fach: number; kapitel: string | null };
+type Vokabel = { id: string; wort: string; deutsch: string; fach: number };
 type Vorschlag = { wort: string; deutsch: string };
 
 const SPRACHEN: { id: Sprache; name: string }[] = [
@@ -15,13 +16,14 @@ const SPRACHEN: { id: Sprache; name: string }[] = [
   { id: "la", name: "Latein" },
 ];
 
-export default function Erfassen() {
+function Erfassen() {
   const supabase = useRef(createClient()).current;
+  const kapitelId = useSearchParams().get("kapitel");
+  const [kapitelName, setKapitelName] = useState<string | null>(null);
   const [sprache, setSprache] = useState<Sprache>("en");
+  const [ladeFehler, setLadeFehler] = useState(false);
   const [wort, setWort] = useState("");
   const [deutsch, setDeutsch] = useState("");
-  const [kapitel, setKapitel] = useState("");
-  const [kapitelVorschlaege, setKapitelVorschlaege] = useState<string[]>([]);
   const [vorschlaege, setVorschlaege] = useState<Vorschlag[]>([]);
   const [liste, setListe] = useState<Vokabel[]>([]);
   const [busy, setBusy] = useState(false);
@@ -29,6 +31,17 @@ export default function Erfassen() {
   const [bruecken, setBruecken] = useState<string[]>([]);
   const [vorlesenErlaubt, setVorlesenErlaubt] = useState(false);
   const wortRef = useRef<HTMLInputElement>(null);
+
+  // Ohne Kapitel-Parameter: freie Sprachwahl wie bisher. Mit Parameter: Sprache kommt vom Kapitel.
+  useEffect(() => {
+    if (!kapitelId) return;
+    (async () => {
+      const { data } = await supabase.from("kapitel").select("sprache, name").eq("id", kapitelId).maybeSingle();
+      if (!data) return setLadeFehler(true);
+      setSprache(data.sprache as Sprache);
+      setKapitelName(data.name);
+    })();
+  }, [supabase, kapitelId]);
 
   useEffect(() => {
     (async () => {
@@ -40,18 +53,11 @@ export default function Erfassen() {
   }, [supabase]);
 
   const laden = useCallback(async () => {
-    const [{ data }, { data: alle }] = await Promise.all([
-      supabase
-        .from("vokabel")
-        .select("id, wort, deutsch, fach, kapitel")
-        .eq("sprache", sprache)
-        .order("created_at", { ascending: false })
-        .limit(50),
-      supabase.from("vokabel").select("kapitel").not("kapitel", "is", null),
-    ]);
+    let q = supabase.from("vokabel").select("id, wort, deutsch, fach").order("created_at", { ascending: false }).limit(50);
+    q = kapitelId ? q.eq("kapitel_id", kapitelId) : q.eq("sprache", sprache).is("kapitel_id", null);
+    const { data } = await q;
     setListe(data ?? []);
-    setKapitelVorschlaege([...new Set((alle ?? []).map((r) => r.kapitel as string))].sort());
-  }, [supabase, sprache]);
+  }, [supabase, sprache, kapitelId]);
 
   useEffect(() => {
     laden();
@@ -77,7 +83,7 @@ export default function Erfassen() {
     setBruecken([]);
     const { data, error } = await supabase
       .from("vokabel")
-      .insert({ sprache, wort: wort.trim(), deutsch: deutsch.trim(), kapitel: kapitel.trim() || null })
+      .insert({ sprache, wort: wort.trim(), deutsch: deutsch.trim(), kapitel_id: kapitelId })
       .select("zentral_id")
       .single();
     setBusy(false);
@@ -93,7 +99,6 @@ export default function Erfassen() {
     setWort("");
     setDeutsch("");
     setVorschlaege([]);
-    // Kapitel bleibt stehen, damit man mehrere Vokabeln zum gleichen Kapitel eintragen kann
     wortRef.current?.focus();
     laden();
   }
@@ -108,34 +113,36 @@ export default function Erfassen() {
     .filter((w) => w.toLowerCase() !== wort.trim().toLowerCase())
     .map((w) => ({ wort: w }));
 
+  if (ladeFehler)
+    return (
+      <main className="mx-auto max-w-xl p-6">
+        <Link href="/kapitel" className="text-sm underline">← Meine Kapitel</Link>
+        <p className="mt-4">Dieses Kapitel gibt es nicht (mehr).</p>
+      </main>
+    );
+
   return (
     <main className="mx-auto flex min-h-screen max-w-xl flex-col gap-5 p-6">
-      <Link href="/" className="text-sm underline">← Zurück</Link>
-      <h1 className="text-2xl font-bold">Neue Vokabeln erfassen</h1>
+      <Link href="/kapitel" className="text-sm underline">← Meine Kapitel</Link>
+      <h1 className="text-2xl font-bold">{kapitelName ? `Erfassen: ${kapitelName}` : "Vokabeln ohne Kapitel erfassen"}</h1>
 
-      <div className="grid grid-cols-2 gap-2" role="tablist">
-        {SPRACHEN.map((s) => (
-          <button
-            key={s.id}
-            role="tab"
-            aria-selected={sprache === s.id}
-            onClick={() => { setSprache(s.id); setVorschlaege([]); setBruecken([]); }}
-            className={`rounded-lg border p-3 font-medium ${sprache === s.id ? "border-black bg-black text-white" : "border-neutral-300"}`}
-          >
-            {s.name}
-          </button>
-        ))}
-      </div>
+      {!kapitelId && (
+        <div className="grid grid-cols-2 gap-2" role="tablist">
+          {SPRACHEN.map((s) => (
+            <button
+              key={s.id}
+              role="tab"
+              aria-selected={sprache === s.id}
+              onClick={() => { setSprache(s.id); setVorschlaege([]); setBruecken([]); }}
+              className={`rounded-lg border p-3 font-medium ${sprache === s.id ? "border-black bg-black text-white" : "border-neutral-300"}`}
+            >
+              {s.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       <form onSubmit={speichern} className="flex flex-col gap-3">
-        <div>
-          <input className={eingabe} placeholder="Kapitel (z. B. Unit 3) – optional" list="kapitel-liste"
-            value={kapitel} onChange={(e) => setKapitel(e.target.value)} />
-          <datalist id="kapitel-liste">
-            {kapitelVorschlaege.map((k) => <option key={k} value={k} />)}
-          </datalist>
-        </div>
-
         <input ref={wortRef} className={eingabe} placeholder={sprache === "en" ? "Englisches Wort" : "Lateinisches Wort"}
           autoCapitalize="off" autoCorrect="off" spellCheck={false} required
           value={wort} onChange={(e) => setWort(e.target.value)} />
@@ -181,7 +188,6 @@ export default function Erfassen() {
                 <div>
                   <p className="font-medium">{v.wort}</p>
                   <p className="text-sm text-neutral-600">{v.deutsch}</p>
-                  {v.kapitel && <p className="text-xs text-neutral-400">{v.kapitel}</p>}
                 </div>
                 <div className="flex items-center gap-3">
                   {vorlesenErlaubt && <VorlesenKnopf text={v.wort} sprache={sprache} />}
@@ -198,4 +204,8 @@ export default function Erfassen() {
       </section>
     </main>
   );
+}
+
+export default function ErfassenSeite() {
+  return <Suspense><Erfassen /></Suspense>;
 }

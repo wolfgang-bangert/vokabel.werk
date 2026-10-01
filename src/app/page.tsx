@@ -27,15 +27,11 @@ export default async function Home() {
         </form>
       </header>
 
-      <Link href="/erfassen" className="rounded-2xl border border-neutral-300 p-6 active:bg-neutral-100">
-        <p className="text-xl font-semibold">Neue Vokabeln erfassen</p>
-        <p className="text-sm text-neutral-600">Englisch oder Latein eintragen</p>
-      </Link>
-
-      <Link href="/lernen" className="rounded-2xl border border-neutral-300 p-6 active:bg-neutral-100">
-        <p className="text-xl font-semibold">Lernen</p>
+      <Link href="/kapitel" className="rounded-2xl border border-neutral-300 p-6 active:bg-neutral-100">
+        <p className="text-xl font-semibold">Meine Kapitel</p>
         <p className="text-sm text-neutral-600">
           {faellig > 0 ? `${faellig} Vokabel${faellig === 1 ? "" : "n"} zum Wiederholen` : "Heute ist nichts fällig"}
+          {" · "}Erfassen oder lernen
         </p>
       </Link>
 

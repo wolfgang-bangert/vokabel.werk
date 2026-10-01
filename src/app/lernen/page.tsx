@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { eingabe, knopf } from "@/components/AuthLayout";
 import { AufsagenKnopf } from "@/components/Sprachknoepfe";
@@ -14,17 +15,18 @@ type Karte = {
   deutsch: string;
   fach: number;
   zentral_id: string | null;
-  kapitel: string | null;
+  kapitel_id: string | null;
 };
-type KapitelInfo = { schluessel: string; label: string; anzahl: number };
 
 const SPRACHE = { en: "Englisch", la: "Latein" } as const;
 const PRO_RUNDE = 20;
-const OHNE_KAPITEL = "__ohne__";
-const KAPITEL_KEY = "vokabel-werk:kapitel-auswahl";
+const OHNE = "ohne";
 
-export default function Lernen() {
+function Lernen() {
   const supabase = useRef(createClient()).current;
+  const kapitelParam = useSearchParams().get("kapitel");
+  const kapitelFilter = kapitelParam ? new Set(kapitelParam.split(",")) : null;
+
   const [karten, setKarten] = useState<Karte[] | null>(null);
   const [stunden, setStunden] = useState<number[]>([...STANDARD_STUNDEN]);
   const [pos, setPos] = useState(0);
@@ -34,9 +36,6 @@ export default function Lernen() {
   const [richtige, setRichtige] = useState(0);
   const [tagesziel, setTagesziel] = useState<{ heute: number; ziel: number; neu: number } | null>(null);
   const [verteilung, setVerteilung] = useState<number[] | null>(null);
-  const [kapitelListe, setKapitelListe] = useState<KapitelInfo[] | null>(null);
-  const [kapitelAuswahl, setKapitelAuswahl] = useState<Set<string> | null>(null);
-  const [kapitelWahlOffen, setKapitelWahlOffen] = useState(false);
   const [fehler, setFehler] = useState<string | null>(null);
   const feldRef = useRef<HTMLInputElement>(null);
 
@@ -51,48 +50,12 @@ export default function Lernen() {
     schaechteLaden();
   }, [schaechteLaden]);
 
-  // Kapitel ermitteln: bei nur einem Kapitel (oder keinem) wird nichts gefragt
   useEffect(() => {
-    (async () => {
-      const { data } = await supabase.from("vokabel").select("kapitel");
-      const zaehler = new Map<string, number>();
-      (data ?? []).forEach((r) => {
-        const schluessel = r.kapitel ?? OHNE_KAPITEL;
-        zaehler.set(schluessel, (zaehler.get(schluessel) ?? 0) + 1);
-      });
-      const liste = [...zaehler.entries()]
-        .map(([schluessel, anzahl]) => ({ schluessel, anzahl, label: schluessel === OHNE_KAPITEL ? "Ohne Kapitel" : schluessel }))
-        .sort((a, b) => a.label.localeCompare(b.label, "de"));
-      setKapitelListe(liste);
-
-      if (liste.length <= 1) {
-        setKapitelAuswahl(new Set(liste.map((l) => l.schluessel)));
-        return;
-      }
-      let gespeichert: string[] = [];
-      try {
-        gespeichert = JSON.parse(localStorage.getItem(KAPITEL_KEY) ?? "[]");
-      } catch {
-        gespeichert = [];
-      }
-      const gueltig = gespeichert.filter((s) => liste.some((l) => l.schluessel === s));
-      if (gueltig.length > 0) {
-        setKapitelAuswahl(new Set(gueltig));
-      } else {
-        setKapitelAuswahl(new Set(liste.map((l) => l.schluessel)));
-        setKapitelWahlOffen(true);
-      }
-    })();
-  }, [supabase]);
-
-  // Fällige Vokabeln laden, sobald die Kapitelauswahl feststeht
-  useEffect(() => {
-    if (!kapitelAuswahl || kapitelWahlOffen) return;
     (async () => {
       const [{ data: k, error }, { data: iv }] = await Promise.all([
         supabase
           .from("vokabel")
-          .select("id, sprache, wort, deutsch, fach, zentral_id, kapitel")
+          .select("id, sprache, wort, deutsch, fach, zentral_id, kapitel_id")
           .lt("fach", 6)
           .lte("faellig_am", new Date().toISOString())
           .order("faellig_am")
@@ -103,37 +66,20 @@ export default function Lernen() {
       const eigene = [...STANDARD_STUNDEN] as number[];
       (iv ?? []).forEach((r) => (eigene[r.fach - 1] = r.stunden));
       setStunden(eigene);
-      const gefiltert = (k ?? []).filter((r) => kapitelAuswahl.has(r.kapitel ?? OHNE_KAPITEL)).slice(0, PRO_RUNDE);
-      setKarten(gefiltert);
-      setPos(0);
-      setRichtige(0);
+      const gefiltert = kapitelFilter
+        ? (k ?? []).filter((r) => kapitelFilter.has(r.kapitel_id ?? OHNE))
+        : (k ?? []);
+      setKarten(gefiltert.slice(0, PRO_RUNDE));
     })();
-  }, [supabase, kapitelAuswahl, kapitelWahlOffen]);
+    // kapitelParam als String vergleichen, nicht das bei jedem Render neue Set-Objekt
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supabase, kapitelParam]);
 
   useEffect(() => {
     if (ergebnis === null) feldRef.current?.focus();
   }, [ergebnis, pos, karten]);
 
   const karte = karten?.[pos];
-
-  function kapitelUmschalten(schluessel: string) {
-    setKapitelAuswahl((s) => {
-      const neu = new Set(s);
-      if (neu.has(schluessel)) neu.delete(schluessel);
-      else neu.add(schluessel);
-      return neu;
-    });
-  }
-
-  function kapitelBestaetigen() {
-    try {
-      localStorage.setItem(KAPITEL_KEY, JSON.stringify([...(kapitelAuswahl ?? [])]));
-    } catch {
-      // Speicher nicht verfügbar (z. B. privates Fenster) – kein Problem, gilt nur für diese Sitzung
-    }
-    setKarten(null);
-    setKapitelWahlOffen(false);
-  }
 
   async function werten(res: Ergebnis) {
     if (!karte || ergebnis) return;
@@ -184,13 +130,7 @@ export default function Lernen() {
     setTipps([]);
   }
 
-  const kopf = <Link href="/" className="text-sm underline">← Zurück</Link>;
-
-  const kapitelAendernLink = kapitelListe && kapitelListe.length > 1 && (
-    <button type="button" className="self-start text-xs text-neutral-500 underline" onClick={() => setKapitelWahlOffen(true)}>
-      Kapitel ändern
-    </button>
-  );
+  const kopf = <Link href="/kapitel" className="text-sm underline">← Meine Kapitel</Link>;
 
   const schaechte = verteilung && (
     <div className="grid grid-cols-6 gap-1 text-center text-xs">
@@ -204,31 +144,6 @@ export default function Lernen() {
   );
 
   if (fehler && !karten) return <main className="mx-auto max-w-xl p-6">{kopf}<p className="mt-4 text-red-600">{fehler}</p></main>;
-
-  if (kapitelWahlOffen && kapitelListe)
-    return (
-      <main className="mx-auto flex min-h-screen max-w-xl flex-col gap-4 p-6">
-        {kopf}
-        <h1 className="text-2xl font-bold">Welche Kapitel?</h1>
-        <p className="text-neutral-600">Wähle ein oder mehrere Kapitel zum Lernen aus.</p>
-        <div className="flex flex-col gap-2">
-          {kapitelListe.map((k) => (
-            <label key={k.schluessel} className="flex items-center justify-between rounded-lg border border-neutral-300 p-3">
-              <span className="flex items-center gap-2">
-                <input type="checkbox" checked={kapitelAuswahl?.has(k.schluessel) ?? false}
-                  onChange={() => kapitelUmschalten(k.schluessel)} />
-                {k.label}
-              </span>
-              <span className="text-sm text-neutral-500">{k.anzahl}</span>
-            </label>
-          ))}
-        </div>
-        <button className={knopf} onClick={kapitelBestaetigen} disabled={!kapitelAuswahl || kapitelAuswahl.size === 0}>
-          Los geht&apos;s
-        </button>
-      </main>
-    );
-
   if (!karten) return <main className="mx-auto max-w-xl p-6">{kopf}<p className="mt-4">Lade …</p></main>;
 
   if (karten.length === 0)
@@ -236,10 +151,9 @@ export default function Lernen() {
       <main className="mx-auto flex max-w-xl flex-col gap-4 p-6">
         {kopf}
         <h1 className="text-2xl font-bold">Lernen</h1>
-        {kapitelAendernLink}
         {schaechte}
-        <p>Heute ist nichts fällig. Super! Du kannst neue Vokabeln erfassen.</p>
-        <Link className={`${knopf} block text-center`} href="/erfassen">Neue Vokabeln erfassen</Link>
+        <p>Heute ist hier nichts fällig. Super!</p>
+        <Link className={`${knopf} block text-center`} href="/kapitel">Zu meinen Kapiteln</Link>
       </main>
     );
 
@@ -257,7 +171,6 @@ export default function Lernen() {
   return (
     <main className="mx-auto flex min-h-screen max-w-xl flex-col gap-5 p-6">
       {kopf}
-      {kapitelAendernLink}
       {schaechte}
       <p className="text-sm text-neutral-500">
         {pos + 1} / {karten.length} · {SPRACHE[karte.sprache]} · Schacht {karte.fach}
@@ -317,4 +230,8 @@ export default function Lernen() {
       )}
     </main>
   );
+}
+
+export default function LernenSeite() {
+  return <Suspense><Lernen /></Suspense>;
 }
