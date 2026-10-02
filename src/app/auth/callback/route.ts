@@ -1,9 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { publicOrigin } from "@/lib/origin";
 
 // Ziel der Links aus den Bestätigungs- und Passwort-vergessen-Mails
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = request.nextUrl;
+  const { searchParams } = request.nextUrl;
+  const origin = publicOrigin(request);
   const code = searchParams.get("code");
   const next = searchParams.get("next");
   const ziel = next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
